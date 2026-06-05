@@ -1,0 +1,47 @@
+name: CI - Quality & Performance Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-quality:
+    name: Build, Test & Quality Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Build with Maven
+        run: mvn clean compile
+
+      - name: Run Tests
+        run: mvn test
+
+      - name: Generate JaCoCo Report
+        run: mvn jacoco:report
+
+      - name: SonarQube Analysis
+        run: |
+          mvn sonar:sonar \
+            -Dsonar.projectKey=stock-quality-project \
+            -Dsonar.host.url=http://localhost:9000 \
+            -Dsonar.token=${{ secrets.SONAR_TOKEN }}
